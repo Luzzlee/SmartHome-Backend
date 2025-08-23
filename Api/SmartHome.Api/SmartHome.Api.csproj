@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\SmartHome.Shared\SmartHome.Shared.csproj" />
+    <ProjectReference Include="..\..\Slices\Devices\EntryPoints\SmartHome.Slices.Devices.EntryPoints\SmartHome.Slices.Devices.EntryPoints.csproj" />
   </ItemGroup>
 
 </Project>
