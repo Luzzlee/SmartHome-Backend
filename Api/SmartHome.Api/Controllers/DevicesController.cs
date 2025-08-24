@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SmartHome.Slices.Devices.EntryPoints;
+using SmartHome.Slices.Devices.Services;
 using SmartHome.Shared;
 
 namespace SmartHome.Api;
@@ -7,16 +7,16 @@ namespace SmartHome.Api;
 [ApiController]
 [Route("api/[controller]")]
 public class DevicesController : ControllerBase {
-    private readonly IDevicesEntryPoint _entryPoint;
+    private readonly IDevicesService _service;
 
-    public DevicesController(IDevicesEntryPoint entryPoint) {
-        _entryPoint = entryPoint;
+    public DevicesController(IDevicesService service) {
+        _service = service;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<Device>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllDevices() {
-        var devices = await _entryPoint.GetDevicesAsync();
+        var devices = await _service.GetAllDevices();
         return Ok(devices);
     }
 
@@ -24,7 +24,7 @@ public class DevicesController : ControllerBase {
     [ProducesResponseType(typeof(Device), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDeviceById([FromRoute]int id) {
-        var device = await _entryPoint.GetDeviceByIdAsync(id);
+        var device = await _service.GetDeviceById(id);
         if(device == null) {
             return NotFound();
         }
@@ -34,8 +34,8 @@ public class DevicesController : ControllerBase {
     [HttpGet("search")]
     [ProducesResponseType(typeof(Device), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> SearchDeviceByName([FromRoute] string search) {
-        var device = await _entryPoint.SearchDeviceByNameAsync(search);
+    public async Task<IActionResult> SearchDeviceByName([FromQuery] string name) {
+        var device = await _service.SearchDeviceByName(name);
         if(device == null) {
             return NotFound();
         }

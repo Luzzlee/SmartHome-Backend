@@ -1,6 +1,6 @@
 ﻿namespace SmartHome.Slices.Devices.EntryPoints;
 
-public class Class1
+public class GetDevicesEntryPoint
 {
 
 }

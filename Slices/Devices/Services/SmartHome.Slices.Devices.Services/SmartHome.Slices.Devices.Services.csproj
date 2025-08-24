@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Shared\SmartHome.Shared\SmartHome.Shared.csproj" />
+    <ProjectReference Include="..\..\Repository\SmartHome.Slices.Devices.Repository\SmartHome.Slices.Devices.Repository.csproj" />
+  </ItemGroup>
+
 </Project>

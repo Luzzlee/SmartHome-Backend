@@ -10,7 +10,7 @@ namespace SmartHome.Shared {
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name TEXT NOT NULL,
                 Type TEXT NOT NULL,
-                IpAddress TEXT NOT NULL
+                IpAddress TEXT NOT NULL,
                 Active BOOLEAN NOT NULL CHECK (Active IN (0, 1))
             );
         ";
