@@ -7,13 +7,12 @@ namespace SmartHome.Shared {
 
             var sql = @"
             CREATE TABLE IF NOT EXISTS Devices (
-                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Id TEXT PRIMARY KEY,
                 Name TEXT NOT NULL,
                 Type TEXT NOT NULL,
                 IpAddress TEXT NOT NULL,
                 Active BOOLEAN NOT NULL CHECK (Active IN (0, 1))
-            );
-        ";
+            );";
 
             await connection.ExecuteAsync(sql);
         }

@@ -1,6 +1,6 @@
 ﻿namespace SmartHome.Shared {
     public class Device {
-        public int Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string IpAddress { get; set; } = string.Empty;

@@ -6,12 +6,25 @@ Accept: application/json
 ###
 
 
-GET {{SmartHome.Api_HostAddress}}/api/devices/1
+GET {{SmartHome.Api_HostAddress}}/api/devices/20250825-001
 Accept: application/json
 
 ###
 
 
-GET {{SmartHome.Api_HostAddress}}/api/devices/TestDevice
+GET {{SmartHome.Api_HostAddress}}/api/devices/search?name=3rdDevice
+
+###
+
+
+POST {{SmartHome.Api_HostAddress}}/api/devices/
+Content-Type: application/json
+{
+  "id": "3",
+  "name": "3rdDevice",
+  "type": "Camera",
+  "ipAddress": "134.162.96.44",
+  "active": true
+}
 
 ###

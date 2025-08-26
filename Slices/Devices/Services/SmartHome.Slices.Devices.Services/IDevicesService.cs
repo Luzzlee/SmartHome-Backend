@@ -4,7 +4,8 @@ using SmartHome.Shared;
 namespace SmartHome.Slices.Devices.Services {
     public interface IDevicesService {
         Task<List<Device>> GetAllDevices();
-        Task<Device> GetDeviceById(int id);
+        Task<Device> GetDeviceById(string id);
         Task<Device> SearchDeviceByName(string search);
+        Task<Device> CreateDevice(Device device);   
     }
 }
