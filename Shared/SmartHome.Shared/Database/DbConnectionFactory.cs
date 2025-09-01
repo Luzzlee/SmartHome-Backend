@@ -10,6 +10,10 @@ namespace SmartHome.Shared {
             _connectionString = configuration.GetConnectionString("Default")!;
         }
 
+        public DbConnectionFactory(string connectionString) {
+            _connectionString = connectionString;
+        }
+
         public IDbConnection CreateConnection() {
             return new SqliteConnection(_connectionString);
         }

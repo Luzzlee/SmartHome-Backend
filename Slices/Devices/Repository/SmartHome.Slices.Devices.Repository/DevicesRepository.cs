@@ -48,7 +48,7 @@ namespace SmartHome.Slices.Devices.Repository {
             return device;
         }
 
-        public async Task<Device> CreateDevice(Device device) {
+        public async Task<Device?> CreateDevice(Device device) {
             using var connection = _dbFactory.CreateConnection();
 
             var sql = @"
@@ -58,7 +58,9 @@ namespace SmartHome.Slices.Devices.Repository {
 
             await connection.ExecuteAsync(sql, device);
 
-            return device;
+            var createdDevice = await GetDeviceById(device.Id);
+            
+            return createdDevice;
         }
 
         public async Task<Device?> SetDeviceActiveStatus(string id, bool active) {
@@ -72,7 +74,7 @@ namespace SmartHome.Slices.Devices.Repository {
 
             await connection.ExecuteAsync(sql, new { Id = id, Active = active });
 
-            var device = await GetDeviceById(id);
+           var device = await GetDeviceById(id);
 
             return device;
         }
@@ -80,16 +82,13 @@ namespace SmartHome.Slices.Devices.Repository {
         public async Task<string?> GetIdOfLatestEntry() {
             using var connection = _dbFactory.CreateConnection();
 
-            var today = DateTime.UtcNow.ToString("yyyyMMdd");
-
             var sql = @"
                 SELECT Id FROM Devices 
-                WHERE Id LIKE @prefix || '%'
                 ORDER BY Id DESC
                 LIMIT 1
             ";
 
-            var latestId = await connection.QueryFirstOrDefaultAsync<string>(sql, new { prefix = today });
+            var latestId = await connection.QueryFirstOrDefaultAsync<string>(sql);
 
             return latestId;
         }

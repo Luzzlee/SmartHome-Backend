@@ -6,13 +6,14 @@ Accept: application/json
 ###
 
 
-GET {{SmartHome.Api_HostAddress}}/api/devices/20250825-001
+GET {{SmartHome.Api_HostAddress}}/api/devices/28888885-001
 Accept: application/json
 
 ###
 
 
-GET {{SmartHome.Api_HostAddress}}/api/devices/search?name=3rdDevice
+GET {{SmartHome.Api_HostAddress}}/api/devices/search?name=3rd
+Accept: application/json
 
 ###
 
@@ -21,10 +22,15 @@ POST {{SmartHome.Api_HostAddress}}/api/devices/
 Content-Type: application/json
 {
   "id": "3",
-  "name": "3rdDevice",
+  "name": "TestDevice",
   "type": "Camera",
-  "ipAddress": "134.162.96.44",
+  "ipAddress": "1",
   "active": true
 }
+
+###
+
+PATCH {{SmartHome.Api_HostAddress}}/api/devices/status/20250826-002/false
+Accept: application/json
 
 ###
