@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SmartHome.Slices.Devices.Services;
 using SmartHome.Shared;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace SmartHome.Api {
 
@@ -83,6 +84,32 @@ namespace SmartHome.Api {
                 return Ok(result);
             }
             catch(ArgumentException ex) {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("action/subscribe/{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SubscribeToDevice([FromRoute] string id) {
+            try {
+                await _service.SubscribeToDevice(id);
+                return Ok();
+            }
+            catch (ArgumentException ex) {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("action/light/{id}/{turnOn}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SwitchLight([FromRoute] string id, [FromRoute] bool turnOn) {
+            try {
+                await _service.SwitchLight(id, turnOn);
+                return Ok();
+            }
+            catch (ArgumentException ex) {
                 return BadRequest(ex.Message);
             }
         }

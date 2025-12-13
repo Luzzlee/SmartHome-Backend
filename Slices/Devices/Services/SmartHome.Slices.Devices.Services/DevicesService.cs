@@ -6,9 +6,11 @@ using System.Text.RegularExpressions;
 namespace SmartHome.Slices.Devices.Services {
     public class DevicesService : IDevicesService {
         private readonly IDevicesRepository _repository;
-        
-        public DevicesService(IDevicesRepository repository) {
+        private readonly MqttHelper _mqttHelper;
+
+        public DevicesService(IDevicesRepository repository, MqttHelper mqttHelper) {
             _repository = repository;
+            _mqttHelper = mqttHelper;
         }
         
         public async Task<List<Device>> GetAllDevices() {
@@ -40,6 +42,29 @@ namespace SmartHome.Slices.Devices.Services {
             ValidateId(id);
             var result = await _repository.SetDeviceActiveStatus(id, active);
             return result;
+        }
+
+        public async Task SubscribeToDevice(string id) {
+            var device = await GetDeviceById(id);
+            if(device == null) {
+                throw new ArgumentException($"Device with id '{id}' not found.", nameof(id));
+            }
+            string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
+            await _mqttHelper.SubscribeAsync(topic);
+        }
+
+        public async Task SwitchLight(string id, bool turnOn) {
+            var device = await GetDeviceById(id);
+            if(device == null) {
+                throw new ArgumentException($"Device with id '{id}' not found.", nameof(id));
+            }
+            if(device.Type.ToLower() != "light") {
+                throw new ArgumentException($"Device with id '{id}' is not a light.", nameof(id));
+            }
+            string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
+            var payload = turnOn ? "ON" : "OFF";
+
+            await _mqttHelper.PublishAsync(topic, payload);
         }
 
         private async Task<string> GenerateNewId() {

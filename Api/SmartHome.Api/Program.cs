@@ -9,10 +9,27 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
     .AddEnvironmentVariables();
 
+builder.Services.AddSignalR();
+
+builder.Services.AddSingleton<MqttHelper>();
+
 builder.Services.AddSingleton<DbConnectionFactory>();
 
 builder.Services.AddDeviceRepository();
 builder.Services.AddDeviceServices();
+
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowFrontend", policy => {
+        policy.WithOrigins("http://localhost:5173")
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+    options.AddPolicy("AllowAll", policy => {
+        policy.AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddControllers();
 
@@ -21,9 +38,15 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseCors("AllowAll");
+
+app.MapHub<DeviceHub>("/devicehub");
+
 using(var scope = app.Services.CreateScope()) {
     var dbFactory = scope.ServiceProvider.GetRequiredService<DbConnectionFactory>();
+    var mqttHelper = scope.ServiceProvider.GetRequiredService<MqttHelper>();
     await DatabaseInitializer.Initialize(dbFactory);
+    await mqttHelper.ConnectAsync();
 }
 
 if (app.Environment.IsDevelopment()) {

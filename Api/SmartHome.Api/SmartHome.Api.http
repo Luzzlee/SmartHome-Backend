@@ -22,15 +22,26 @@ POST {{SmartHome.Api_HostAddress}}/api/devices/
 Content-Type: application/json
 {
   "id": "3",
-  "name": "TestDevice",
-  "type": "Camera",
-  "ipAddress": "1",
+  "name": "Arduino1",
+  "type": "Light",
+  "ipAddress": "192.168.1.1",
   "active": true
 }
 
 ###
 
+
 PATCH {{SmartHome.Api_HostAddress}}/api/devices/status/20250826-002/false
 Accept: application/json
+
+###
+
+
+POST {{SmartHome.Api_HostAddress}}/api/devices/action/subscribe/20250909-001
+
+###
+
+
+POST {{SmartHome.Api_HostAddress}}/api/devices/action/light/20250909-001/true
 
 ###

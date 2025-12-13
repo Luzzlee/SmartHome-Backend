@@ -8,5 +8,7 @@ namespace SmartHome.Slices.Devices.Services {
         Task<Device?> SearchDeviceByName(string search);
         Task<Device?> CreateDevice(Device device);
         Task<Device?> SetDeviceActiveStatus(string id, bool active);
+        Task SubscribeToDevice(string id);
+        Task SwitchLight(string id, bool turnOn);
     }
 }
