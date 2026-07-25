@@ -1,23 +1,28 @@
 ﻿using MQTTnet;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using System.Buffers;
 
 namespace SmartHome.Shared {
     public class MqttHelper {
         private readonly IMqttClient _client;
         private readonly IHubContext<DeviceHub> _hubContext;
+        private readonly IConfiguration _configuration;
 
 
-        public MqttHelper(IHubContext<DeviceHub> hubContext) {
+        public MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration) {
             _hubContext = hubContext;
+            _configuration = configuration;
             _client = new MqttClientFactory().CreateMqttClient();
         }
 
         public async Task ConnectAsync() {
+            var mqttSection = _configuration.GetSection("Mqtt");
+            var port = int.Parse(mqttSection["Port"] ?? "1883");
             var options = new MqttClientOptionsBuilder()
-               .WithTcpServer("localhost", 1883)
-               .WithCredentials("smarthome", "***REMOVED***")
-               .WithClientId("BackendClient")
+               .WithTcpServer(mqttSection["Host"], port)
+               .WithCredentials(mqttSection["Username"], mqttSection["Password"])
+               .WithClientId(mqttSection["ClientId"])
                .WithCleanSession()
                .Build();
             
