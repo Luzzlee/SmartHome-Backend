@@ -3,6 +3,12 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# SQLite database files (local dev data, not tracked)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # dotenv files
 .env
 
