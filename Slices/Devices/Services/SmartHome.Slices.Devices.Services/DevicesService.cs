@@ -47,7 +47,7 @@ namespace SmartHome.Slices.Devices.Services {
                 }
                 return result;
             } catch (Exception ex) {
-                _logger.LogError(ex, "Failed to create device '{DeviceName}'.", device.Name);
+                _logger.LogWarning("Failed to create device '{DeviceName}': {Message}", device.Name, ex.Message);
                 throw;
             }
         }
@@ -69,7 +69,7 @@ namespace SmartHome.Slices.Devices.Services {
                 await _mqttHelper.SubscribeAsync(topic);
                 _logger.LogInformation("Subscribed to device '{DeviceId}' on topic '{Topic}'.", id, topic);
             } catch (Exception ex) {
-                _logger.LogError(ex, "Failed to subscribe to device '{DeviceId}'.", id);
+                _logger.LogWarning("Failed to subscribe to device '{DeviceId}': {Message}", id, ex.Message);
                 throw;
             }
         }
@@ -90,7 +90,7 @@ namespace SmartHome.Slices.Devices.Services {
                 await _mqttHelper.PublishAsync(topic, payload);
                 _logger.LogInformation("Light '{DeviceId}' switched {State} successfully.", id, turnOn ? "ON" : "OFF");
             } catch (Exception ex) {
-                _logger.LogError(ex, "Failed to switch light '{DeviceId}' {State}.", id, turnOn ? "ON" : "OFF");
+                _logger.LogWarning("Failed to switch light '{DeviceId}' {State}: {Message}", id, turnOn ? "ON" : "OFF", ex.Message);
                 throw;
             }
         }

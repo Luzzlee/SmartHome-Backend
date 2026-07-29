@@ -47,6 +47,8 @@ namespace SmartHome.Shared {
                 var topic = e.ApplicationMessage.Topic;
                 var payload = System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload.ToArray());
 
+                _logger.LogDebug("Received MQTT message on topic '{Topic}' with payload '{Payload}'.", topic, payload);
+
                 await _hubContext.Clients.All.SendAsync("DeviceMessage", new { Topic = topic, Message = payload });
             };
         }
@@ -56,6 +58,8 @@ namespace SmartHome.Shared {
                 .WithTopic(topic)
                 .WithPayload(payload)
                 .Build();
+
+            _logger.LogDebug("Publishing MQTT message to topic '{Topic}' with payload '{Payload}'.", topic, payload);
 
             try {
                 await _client.PublishAsync(message);
