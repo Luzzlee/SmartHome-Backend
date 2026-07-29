@@ -32,6 +32,7 @@ namespace SmartHome.Api.UnitTests {
 
             Assert.That(handled, Is.True);
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
+            Assert.That(context.Response.ContentType, Does.StartWith("application/problem+json"));
             Assert.That(body!.Status, Is.EqualTo(StatusCodes.Status400BadRequest));
             Assert.That(body!.Detail, Is.EqualTo("invalid id"));
         }
@@ -42,6 +43,7 @@ namespace SmartHome.Api.UnitTests {
 
             Assert.That(handled, Is.True);
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+            Assert.That(context.Response.ContentType, Does.StartWith("application/problem+json"));
             Assert.That(body!.Status, Is.EqualTo(StatusCodes.Status500InternalServerError));
             Assert.That(body!.Detail, Does.Not.Contain("some internal detail"));
         }
