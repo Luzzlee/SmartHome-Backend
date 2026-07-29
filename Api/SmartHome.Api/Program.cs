@@ -11,7 +11,6 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
     .AddEnvironmentVariables();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
 
 builder.Services.AddSignalR();
 
@@ -42,9 +41,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
-
 app.UseCors("AllowAll");
+
+app.UseExceptionHandler(options => { });
 
 app.MapHub<DeviceHub>("/devicehub");
 
