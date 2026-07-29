@@ -48,14 +48,12 @@ namespace SmartHome.Api.UnitTests {
         }
 
         [Test]
-        public async Task GetDeviceById_WhenServiceThrowsArgumentException_ReturnBadRequest() {
+        public void GetDeviceById_WhenServiceThrowsArgumentException_PropagatesException() {
             _serviceMock
                 .Setup(s => s.GetDeviceById("invalidId"))
                 .ThrowsAsync(new ArgumentException());
 
-            var result = await _controller.GetDeviceById("invalidId");
-
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.ThrowsAsync<ArgumentException>(async () => await _controller.GetDeviceById("invalidId"));
         }
 
         [Test]
@@ -83,14 +81,12 @@ namespace SmartHome.Api.UnitTests {
         }
 
         [Test]
-        public async Task SearchDeviceByName_WhenServiceThrowsArgumentException_ReturnBadRequest() {
+        public void SearchDeviceByName_WhenServiceThrowsArgumentException_PropagatesException() {
             _serviceMock
                 .Setup(s => s.SearchDeviceByName(""))
                 .ThrowsAsync(new ArgumentException());
 
-            var result = await _controller.SearchDeviceByName("");
-
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.ThrowsAsync<ArgumentException>(async () => await _controller.SearchDeviceByName(""));
         }
 
         [Test]
@@ -120,16 +116,14 @@ namespace SmartHome.Api.UnitTests {
         }
 
         [Test]
-        public async Task CreateDevice_WhenServiceThrowsArgumentException_ReturnBadRequest() {
+        public void CreateDevice_WhenServiceThrowsArgumentException_PropagatesException() {
             var device = new Device { Id = "20210824-001", Name = "", Type = "Light", IpAddress = "192.168.0.5", Active = true };
 
             _serviceMock
                 .Setup(s => s.CreateDevice(device))
                 .ThrowsAsync(new ArgumentException());
 
-            var result = await _controller.CreateDevice(device);
-
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.ThrowsAsync<ArgumentException>(async () => await _controller.CreateDevice(device));
         }
     }
 }

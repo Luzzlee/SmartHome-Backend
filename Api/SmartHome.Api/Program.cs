@@ -1,6 +1,7 @@
 using SmartHome.Shared;
 using SmartHome.Slices.Devices.Repository;
 using SmartHome.Slices.Devices.Services;
+using SmartHome.Api.ErrorHandling;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
     .AddEnvironmentVariables();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddSignalR();
 
@@ -39,6 +42,8 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+
+app.UseExceptionHandler(options => { });
 
 app.MapHub<DeviceHub>("/devicehub");
 
