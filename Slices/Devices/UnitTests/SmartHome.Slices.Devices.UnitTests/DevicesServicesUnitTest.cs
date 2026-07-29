@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SmartHome.Shared;
 using SmartHome.Slices.Devices.Repository;
@@ -18,8 +19,8 @@ namespace SmartHome.Slices.Devices.UnitTests {
             _repositoryMock = new Mock<IDevicesRepository>();
             var hubContextMock = new Mock<IHubContext<DeviceHub>>();
             var configurationMock = new Mock<IConfiguration>();
-            var mqttHelper = new MqttHelper(hubContextMock.Object, configurationMock.Object);
-            _service = new DevicesService(_repositoryMock.Object, mqttHelper);
+            var mqttHelper = new MqttHelper(hubContextMock.Object, configurationMock.Object, NullLogger<MqttHelper>.Instance);
+            _service = new DevicesService(_repositoryMock.Object, mqttHelper, NullLogger<DevicesService>.Instance);
         }
 
         [Test]

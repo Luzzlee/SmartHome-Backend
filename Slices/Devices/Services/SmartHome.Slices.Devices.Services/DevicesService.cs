@@ -1,5 +1,6 @@
 ﻿using SmartHome.Shared;
 using SmartHome.Slices.Devices.Repository;
+using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -7,10 +8,12 @@ namespace SmartHome.Slices.Devices.Services {
     public class DevicesService : IDevicesService {
         private readonly IDevicesRepository _repository;
         private readonly MqttHelper _mqttHelper;
+        private readonly ILogger<DevicesService> _logger;
 
-        public DevicesService(IDevicesRepository repository, MqttHelper mqttHelper) {
+        public DevicesService(IDevicesRepository repository, MqttHelper mqttHelper, ILogger<DevicesService> logger) {
             _repository = repository;
             _mqttHelper = mqttHelper;
+            _logger = logger;
         }
         
         public async Task<List<Device>> GetAllDevices() {
@@ -31,11 +34,22 @@ namespace SmartHome.Slices.Devices.Services {
         }
 
         public async Task<Device?> CreateDevice(Device device) {
-            ValidateDevice(device);
-            device.Id = await GenerateNewId();
+            _logger.LogInformation("Creating device '{DeviceName}' ({DeviceType}).", device.Name, device.Type);
+            try {
+                ValidateDevice(device);
+                device.Id = await GenerateNewId();
 
-            var result = await _repository.CreateDevice(device);
-            return result;
+                var result = await _repository.CreateDevice(device);
+                if (result != null) {
+                    _logger.LogInformation("Device '{DeviceId}' ('{DeviceName}') created successfully.", result.Id, result.Name);
+                } else {
+                    _logger.LogWarning("Device '{DeviceName}' could not be written to the database.", device.Name);
+                }
+                return result;
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Failed to create device '{DeviceName}'.", device.Name);
+                throw;
+            }
         }
 
         public async Task<Device?> SetDeviceActiveStatus(string id, bool active) {
@@ -45,26 +59,40 @@ namespace SmartHome.Slices.Devices.Services {
         }
 
         public async Task SubscribeToDevice(string id) {
-            var device = await GetDeviceById(id);
-            if(device == null) {
-                throw new ArgumentException($"Device with id '{id}' not found.", nameof(id));
+            _logger.LogInformation("Subscribing to device '{DeviceId}'.", id);
+            try {
+                var device = await GetDeviceById(id);
+                if(device == null) {
+                    throw new ArgumentException($"Device with id '{id}' not found.", nameof(id));
+                }
+                string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
+                await _mqttHelper.SubscribeAsync(topic);
+                _logger.LogInformation("Subscribed to device '{DeviceId}' on topic '{Topic}'.", id, topic);
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Failed to subscribe to device '{DeviceId}'.", id);
+                throw;
             }
-            string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
-            await _mqttHelper.SubscribeAsync(topic);
         }
 
         public async Task SwitchLight(string id, bool turnOn) {
-            var device = await GetDeviceById(id);
-            if(device == null) {
-                throw new ArgumentException($"Device with id '{id}' not found.", nameof(id));
-            }
-            if(device.Type.ToLower() != "light") {
-                throw new ArgumentException($"Device with id '{id}' is not a light.", nameof(id));
-            }
-            string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
-            var payload = turnOn ? "ON" : "OFF";
+            _logger.LogInformation("Switching light '{DeviceId}' {State}.", id, turnOn ? "ON" : "OFF");
+            try {
+                var device = await GetDeviceById(id);
+                if(device == null) {
+                    throw new ArgumentException($"Device with id '{id}' not found.", nameof(id));
+                }
+                if(device.Type.ToLower() != "light") {
+                    throw new ArgumentException($"Device with id '{id}' is not a light.", nameof(id));
+                }
+                string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
+                var payload = turnOn ? "ON" : "OFF";
 
-            await _mqttHelper.PublishAsync(topic, payload);
+                await _mqttHelper.PublishAsync(topic, payload);
+                _logger.LogInformation("Light '{DeviceId}' switched {State} successfully.", id, turnOn ? "ON" : "OFF");
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Failed to switch light '{DeviceId}' {State}.", id, turnOn ? "ON" : "OFF");
+                throw;
+            }
         }
 
         private async Task<string> GenerateNewId() {
