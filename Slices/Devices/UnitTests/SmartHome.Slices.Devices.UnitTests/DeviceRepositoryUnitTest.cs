@@ -75,5 +75,17 @@ namespace SmartHome.Slices.Devices.UnitTests {
 
             Assert.That(latestId, Is.EqualTo(createdDevice!.Id));
         }
+
+        [Test]
+        public async Task GetIdOfLatestEntry_ShouldReturnNull_WhenDevicesTableIsEmpty() {
+            using (var command = _database.Connection.CreateCommand()) {
+                command.CommandText = "DELETE FROM Devices";
+                command.ExecuteNonQuery();
+            }
+
+            var latestId = await _repository.GetIdOfLatestEntry();
+
+            Assert.That(latestId, Is.Null);
+        }
     }
 }

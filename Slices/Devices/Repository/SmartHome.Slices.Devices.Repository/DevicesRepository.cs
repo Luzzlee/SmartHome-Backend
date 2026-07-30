@@ -1,5 +1,6 @@
 ﻿using SmartHome.Shared;
 using Dapper;
+using Microsoft.Data.Sqlite;
 
 namespace SmartHome.Slices.Devices.Repository {
     public class DevicesRepository : IDevicesRepository {
@@ -56,11 +57,20 @@ namespace SmartHome.Slices.Devices.Repository {
                 VALUES (@Id, @Name, @Type, @IpAddress, @Active)
             ";
 
-            await connection.ExecuteAsync(sql, device);
+            try {
+                await connection.ExecuteAsync(sql, device);
+            } catch (SqliteException ex) when (IsDeviceIdCollision(ex)) {
+                throw new DeviceIdCollisionException($"Device id '{device.Id}' is already taken.", ex);
+            }
 
             var createdDevice = await GetDeviceById(device.Id);
-            
+
             return createdDevice;
+        }
+
+        private static bool IsDeviceIdCollision(SqliteException ex) {
+            return ex.SqliteErrorCode == 19 // SQLITE_CONSTRAINT
+                && ex.Message.Contains("Devices.Id", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<Device?> SetDeviceActiveStatus(string id, bool active) {
