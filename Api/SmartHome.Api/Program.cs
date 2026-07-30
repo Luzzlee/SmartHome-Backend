@@ -68,7 +68,7 @@ app.UseCors("AllowFrontend");
 
 app.UseExceptionHandler(options => { });
 
-app.MapHub<DeviceHub>("/devicehub");
+app.MapHub<DeviceHub>("/devicehub").RequireAuthorization();
 
 using(var scope = app.Services.CreateScope()) {
     var dbFactory = scope.ServiceProvider.GetRequiredService<DbConnectionFactory>();
