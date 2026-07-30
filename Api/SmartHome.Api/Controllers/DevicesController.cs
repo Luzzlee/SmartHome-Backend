@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using SmartHome.Slices.Devices.Services;
 using SmartHome.Shared;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SmartHome.Api {
 
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class DevicesController : ControllerBase {
         private readonly IDevicesService _service;
 
