@@ -36,5 +36,5 @@ Device ID format: `yyyyMMdd-XXX` (e.g. `20250829-001`), validated in `DevicesSer
 
 - **No authentication** on the API yet. The Svelte frontend's login is intentionally simulated pending this.
 - `DatabaseInitializer.Initialize` reads the SQL init script via a hardcoded relative path (`../../Shared/SmartHome.Shared/DatabaseScripts/create.sql`) relative to the process working directory — works when run via `dotnet run` from `Api/SmartHome.Api`, but is fragile for other run/deploy contexts.
-- CI (`.github/workflows/ci-dev.yml`, `ci-feature.yml`) only runs on push to `dev` and `f#**` branches — no PR-triggered CI, no coverage of `main`.
+- CI (`.github/workflows/ci-dev.yml`, `ci-feature.yml`) runs on push to `dev` and `f#**` branches, and additionally on `pull_request` events targeting `dev` (job `build-and-test`). No coverage of `main`. `dev` has no branch protection / required status checks configured yet.
 - `smarthome.db` is local dev state (gitignored, recreated on startup) — don't expect it to carry data between machines.

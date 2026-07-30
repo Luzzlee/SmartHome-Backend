@@ -33,19 +33,36 @@ namespace SmartHome.Slices.Devices.Services {
             return result;
         }
 
+        // Two concurrent CreateDevice calls can read the same "latest id" and thus generate the
+        // same new id. Devices.Id is the table's PRIMARY KEY (see create.sql), so the repository
+        // throws DeviceIdCollisionException instead of silently duplicating it. Retry a bounded
+        // number of times with a freshly generated id whenever that happens.
+        private const int MaxCreateDeviceAttempts = 5;
+
         public async Task<Device?> CreateDevice(Device device) {
             _logger.LogInformation("Creating device '{DeviceName}' ({DeviceType}).", device.Name, device.Type);
             try {
                 ValidateDevice(device);
-                device.Id = await GenerateNewId();
 
-                var result = await _repository.CreateDevice(device);
-                if (result != null) {
-                    _logger.LogInformation("Device '{DeviceId}' ('{DeviceName}') created successfully.", result.Id, result.Name);
-                } else {
-                    _logger.LogWarning("Device '{DeviceName}' could not be written to the database.", device.Name);
+                DeviceIdCollisionException? lastCollision = null;
+                for (var attempt = 1; attempt <= MaxCreateDeviceAttempts; attempt++) {
+                    device.Id = await GenerateNewId();
+
+                    try {
+                        var result = await _repository.CreateDevice(device);
+                        if (result != null) {
+                            _logger.LogInformation("Device '{DeviceId}' ('{DeviceName}') created successfully.", result.Id, result.Name);
+                        } else {
+                            _logger.LogWarning("Device '{DeviceName}' could not be written to the database.", device.Name);
+                        }
+                        return result;
+                    } catch (DeviceIdCollisionException ex) {
+                        // Id was taken by a concurrent CreateDevice call in the meantime - regenerate and retry.
+                        lastCollision = ex;
+                    }
                 }
-                return result;
+
+                throw new InvalidOperationException($"Could not generate a unique device id after {MaxCreateDeviceAttempts} attempts.", lastCollision);
             } catch (Exception ex) {
                 _logger.LogWarning("Failed to create device '{DeviceName}': {Message}", device.Name, ex.Message);
                 throw;
@@ -96,25 +113,30 @@ namespace SmartHome.Slices.Devices.Services {
         }
 
         private async Task<string> GenerateNewId() {
+            var today = DateTime.UtcNow.ToString("yyyyMMdd");
             var latestId = await _repository.GetIdOfLatestEntry();
-            var datePart = latestId!.Split('-')[0];
-            var counterPart = latestId!.Split('-')[1];
-                        
-            if (datePart != DateTime.UtcNow.ToString("yyyyMMdd")) {
-                return DateTime.UtcNow.ToString("yyyyMMdd") + "-001";
+
+            // Empty Devices table (e.g. very first device ever created) -> no "-001" case to check
+            if (latestId == null) {
+                return today + "-001";
             }
 
-            int counter = 1;
-            if (int.TryParse(counterPart, out int newCounter)) {
-                counter = newCounter + 1;
-            }
-            
-            if (counter != 1) {
-                string id = DateTime.UtcNow.ToString("yyyyMMdd") + "-" + counter.ToString("D3");
-                return id;
+            var parts = latestId.Split('-');
+            var datePart = parts[0];
+            var counterPart = parts.Length > 1 ? parts[1] : null;
+
+            if (datePart != today) {
+                return today + "-001";
             }
 
-            throw new Exception("Id could not be generated.");
+            // Fall back to counter 1 if today's latest counterPart is missing/not a valid number
+            // (e.g. data corruption) rather than throwing - "001" is always a safe id to try next.
+            var counter = 1;
+            if (counterPart != null && int.TryParse(counterPart, out var parsedCounter)) {
+                counter = parsedCounter + 1;
+            }
+
+            return today + "-" + counter.ToString("D3");
         }
 
         private void ValidateDevice(Device device) {
