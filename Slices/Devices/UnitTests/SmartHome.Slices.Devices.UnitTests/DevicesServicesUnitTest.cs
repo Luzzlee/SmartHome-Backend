@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using SmartHome.Shared;
@@ -117,7 +116,7 @@ namespace SmartHome.Slices.Devices.UnitTests {
                 .Returns((Device device) => {
                     createDeviceCallCount++;
                     if (createDeviceCallCount == 1) {
-                        throw new SqliteException("SQLite Error 19: 'UNIQUE constraint failed: Devices.Id'.", 19);
+                        throw new DeviceIdCollisionException("Device id is already taken.");
                     }
                     return Task.FromResult<Device?>(device);
                 });
@@ -136,7 +135,7 @@ namespace SmartHome.Slices.Devices.UnitTests {
             var today = DateTime.UtcNow.ToString("yyyyMMdd");
             _repositoryMock.Setup(r => r.GetIdOfLatestEntry()).ReturnsAsync($"{today}-001");
             _repositoryMock.Setup(r => r.CreateDevice(It.IsAny<Device>()))
-                .ThrowsAsync(new SqliteException("SQLite Error 19: 'UNIQUE constraint failed: Devices.Id'.", 19));
+                .ThrowsAsync(new DeviceIdCollisionException("Device id is already taken."));
 
             var device = new Device { Name = "Attic Light", Type = "Light", IpAddress = "192.168.0.12", Active = true };
 

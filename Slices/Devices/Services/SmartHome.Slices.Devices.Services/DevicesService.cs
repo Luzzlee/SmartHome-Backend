@@ -1,5 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
-using SmartHome.Shared;
+﻿using SmartHome.Shared;
 using SmartHome.Slices.Devices.Repository;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -32,32 +31,27 @@ namespace SmartHome.Slices.Devices.Services {
         }
 
         // Two concurrent CreateDevice calls can read the same "latest id" and thus generate the
-        // same new id. Devices.Id is the table's PRIMARY KEY (see create.sql), so SQLite rejects
-        // the second insert with a UNIQUE constraint violation instead of silently duplicating
-        // it. Retry a bounded number of times with a freshly generated id whenever that happens.
+        // same new id. Devices.Id is the table's PRIMARY KEY (see create.sql), so the repository
+        // throws DeviceIdCollisionException instead of silently duplicating it. Retry a bounded
+        // number of times with a freshly generated id whenever that happens.
         private const int MaxCreateDeviceAttempts = 5;
 
         public async Task<Device?> CreateDevice(Device device) {
             ValidateDevice(device);
 
-            SqliteException? lastCollision = null;
+            DeviceIdCollisionException? lastCollision = null;
             for (var attempt = 1; attempt <= MaxCreateDeviceAttempts; attempt++) {
                 device.Id = await GenerateNewId();
 
                 try {
                     return await _repository.CreateDevice(device);
-                } catch (SqliteException ex) when (IsDeviceIdCollision(ex)) {
+                } catch (DeviceIdCollisionException ex) {
                     // Id was taken by a concurrent CreateDevice call in the meantime - regenerate and retry.
                     lastCollision = ex;
                 }
             }
 
             throw new InvalidOperationException($"Could not generate a unique device id after {MaxCreateDeviceAttempts} attempts.", lastCollision);
-        }
-
-        private static bool IsDeviceIdCollision(SqliteException ex) {
-            return ex.SqliteErrorCode == 19 // SQLITE_CONSTRAINT
-                && ex.Message.Contains("Devices.Id", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<Device?> SetDeviceActiveStatus(string id, bool active) {
@@ -99,7 +93,7 @@ namespace SmartHome.Slices.Devices.Services {
             }
 
             var parts = latestId.Split('-');
-            var datePart = parts.Length > 0 ? parts[0] : null;
+            var datePart = parts[0];
             var counterPart = parts.Length > 1 ? parts[1] : null;
 
             if (datePart != today) {
