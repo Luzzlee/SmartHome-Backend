@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using SmartHome.Api.ErrorHandling;
 
 namespace SmartHome.Api.UnitTests {
@@ -11,7 +12,7 @@ namespace SmartHome.Api.UnitTests {
 
         [SetUp]
         public void Setup() {
-            _handler = new GlobalExceptionHandler();
+            _handler = new GlobalExceptionHandler(NullLogger<GlobalExceptionHandler>.Instance);
         }
 
         private static async Task<(bool Handled, HttpContext Context, ProblemDetails? Body)> InvokeAsync(Exception exception, GlobalExceptionHandler handler) {
