@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\SmartHome.Shared\SmartHome.Shared.csproj" />
     <ProjectReference Include="..\..\Slices\Devices\Services\SmartHome.Slices.Devices.Services\SmartHome.Slices.Devices.Services.csproj" />
+    <ProjectReference Include="..\..\Slices\Auth\Services\SmartHome.Slices.Auth.Services\SmartHome.Slices.Auth.Services.csproj" />
   </ItemGroup>
 
 </Project>

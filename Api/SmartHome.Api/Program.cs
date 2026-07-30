@@ -1,7 +1,9 @@
 using SmartHome.Shared;
 using SmartHome.Slices.Devices.Repository;
 using SmartHome.Slices.Devices.Services;
+using SmartHome.Slices.Auth.Services;
 using SmartHome.Api.ErrorHandling;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,18 +23,39 @@ builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddDeviceRepository();
 builder.Services.AddDeviceServices();
 
+builder.Services.AddAuthServices();
+
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowFrontend", policy => {
         policy.WithOrigins("http://localhost:5173")
         .AllowAnyHeader()
-        .AllowAnyMethod();
-    });
-    options.AddPolicy("AllowAll", policy => {
-        policy.AllowAnyOrigin()
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
+
+// Cookie-based session auth for the single, statically configured user (see "Auth" config section).
+// Requests without a valid cookie get a 401 instead of the default redirect-to-login-page behavior,
+// since this is an API, not a page-rendering app.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options => {
+        options.Cookie.Name = "SmartHome.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.Events.OnRedirectToLogin = context => {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context => {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 
@@ -41,11 +64,11 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowFrontend");
 
 app.UseExceptionHandler(options => { });
 
-app.MapHub<DeviceHub>("/devicehub");
+app.MapHub<DeviceHub>("/devicehub").RequireAuthorization();
 
 using(var scope = app.Services.CreateScope()) {
     var dbFactory = scope.ServiceProvider.GetRequiredService<DbConnectionFactory>();
@@ -60,6 +83,7 @@ if (app.Environment.IsDevelopment()) {
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
