@@ -3,7 +3,9 @@ using SmartHome.Slices.Devices.Repository;
 using SmartHome.Slices.Devices.Services;
 using SmartHome.Slices.Auth.Services;
 using SmartHome.Api.ErrorHandling;
+using SmartHome.Api.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +59,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
+// GET /health reports DB and MQTT connectivity separately (see HealthChecks/) so it can be used as a
+// simple readiness/liveness probe without needing an authenticated session.
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database")
+    .AddCheck<MqttHealthCheck>("mqtt");
+
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -70,11 +78,26 @@ app.UseExceptionHandler(options => { });
 
 app.MapHub<DeviceHub>("/devicehub").RequireAuthorization();
 
+// Anonymous on purpose: external monitoring/load balancers need to reach this without a session cookie.
+app.MapHealthChecks("/health", new HealthCheckOptions {
+    ResponseWriter = HealthCheckResponseWriter.WriteResponse
+}).AllowAnonymous();
+
 using(var scope = app.Services.CreateScope()) {
     var dbFactory = scope.ServiceProvider.GetRequiredService<DbConnectionFactory>();
     var mqttHelper = scope.ServiceProvider.GetRequiredService<MqttHelper>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
     await DatabaseInitializer.Initialize(dbFactory);
-    await mqttHelper.ConnectAsync();
+
+    try {
+        await mqttHelper.ConnectAsync();
+    } catch (Exception) {
+        // MqttHelper already logged the root cause and kicked off a background reconnect loop - a
+        // broker that's unreachable at startup shouldn't prevent the DB and non-MQTT endpoints from
+        // starting up.
+        logger.LogWarning("Starting the app without an active MQTT connection; will keep retrying in the background.");
+    }
 }
 
 if (app.Environment.IsDevelopment()) {
