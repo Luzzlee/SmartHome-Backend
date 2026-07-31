@@ -4,10 +4,10 @@
 .github/
 .vs/
 .vscode/
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
-*.user
+**/*.db
+**/*.db-journal
+**/*.db-shm
+**/*.db-wal
+**/*.user
 project-structure.txt
 qa_stdout.log
