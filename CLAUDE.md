@@ -53,8 +53,18 @@ Cookie-based session auth (`Microsoft.AspNetCore.Authentication.Cookies`) for a 
 
 `MqttHelper` (`Shared/SmartHome.Shared/Mqtt`) connects to the broker once at startup; if the broker is unreachable, the app logs the failure and starts anyway instead of crashing (`Program.cs` wraps the initial `ConnectAsync()` call in a try/catch). A background retry loop with exponential backoff (5s up to a 1-minute cap) keeps attempting to (re-)connect, both after a failed initial connect and after any later disconnect, so the transport connection recovers automatically once the broker comes back — no app restart needed. The client connects with `.WithCleanSession()`, which means the broker forgets subscriptions on every connect; `MqttHelper` tracks every topic subscribed via `SubscribeAsync` (used by `DevicesService.SubscribeToDevice`) and automatically replays all of them after any successful (re)connect — initial, manual, or from the background retry loop — so previously subscribed devices keep receiving live SignalR state pushes after a broker blip, not just the transport-level connection. `GET /health` (anonymous, see "Authentication" above) reports `database` and `mqtt` connectivity as separate entries in its JSON response via ASP.NET Core's health checks middleware (`Api/SmartHome.Api/HealthChecks`), so DB and MQTT problems can be told apart from the outside.
 
+## Docker
+
+A dev-convenience `Dockerfile` at the repo root builds and runs the API (single-stage, using the full SDK image — not an optimized multi-stage production build, that's a separate later concern):
+
+```bash
+docker build -t smarthome-backend:dev .
+docker run -p 8080:8080 -e Mqtt__Password=<real-value> -e Auth__PasswordHash=<hash-of-real-password> smarthome-backend:dev
+```
+
+`ASPNETCORE_ENVIRONMENT` defaults to `Development` and the API listens on `8080` inside the container (`ASPNETCORE_URLS=http://+:8080`); nothing sensitive is baked into the image — `ConnectionStrings:Default`, the `Mqtt` section (incl. `Mqtt:Password`) and `Auth` section (incl. `Auth:PasswordHash`) all stay overridable via env vars (`ConnectionStrings__Default`, `Mqtt__Password`, `Auth__PasswordHash`, etc.), same as the user-secrets pattern above. Wiring this into the `SmartHome-Infrastructure` docker-compose stack alongside Mosquitto and the frontend is a separate, not-yet-implemented issue there.
+
 ## Known issues / not yet done
 
-- `DatabaseInitializer.Initialize` reads the SQL init script via a hardcoded relative path (`../../Shared/SmartHome.Shared/DatabaseScripts/create.sql`) relative to the process working directory — works when run via `dotnet run` from `Api/SmartHome.Api`, but is fragile for other run/deploy contexts.
 - CI (`.github/workflows/ci-dev.yml`, `ci-feature.yml`) runs on push to `dev` and `f#**` branches, and additionally on `pull_request` events targeting `dev` (job `build-and-test`). No coverage of `main`. `dev` has no branch protection / required status checks configured yet.
 - `smarthome.db` is local dev state (gitignored, recreated on startup) — don't expect it to carry data between machines.

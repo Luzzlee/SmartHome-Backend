@@ -15,4 +15,10 @@
     <PackageReference Include="MQTTnet.AspNetCore" Version="5.0.1.1416" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Embedded so DatabaseInitializer can load it regardless of the process's working directory
+         (dotnet run from Api/SmartHome.Api, a container, or anywhere else). -->
+    <EmbeddedResource Include="DatabaseScripts\create.sql" />
+  </ItemGroup>
+
 </Project>
