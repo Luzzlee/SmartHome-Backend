@@ -21,4 +21,11 @@
     <EmbeddedResource Include="DatabaseScripts\create.sql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Lets unit tests construct MqttHelper with a mocked IMqttClient (internal constructor) to
+         exercise broker-failure paths (e.g. UnsubscribeAsync throwing) without a real broker. -->
+    <InternalsVisibleTo Include="SmartHome.Shared.UnitTests" />
+    <InternalsVisibleTo Include="SmartHome.Slices.Devices.UnitTests" />
+  </ItemGroup>
+
 </Project>

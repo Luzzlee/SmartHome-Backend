@@ -84,14 +84,26 @@ namespace SmartHome.Slices.Devices.Services {
                     return false;
                 }
 
+                // Attempt MQTT cleanup *before* touching the DB row, while we still have the device
+                // record to compute its topic from. MQTT cleanup is best-effort here (single-user hobby
+                // system, DB state is the primary contract): a transient broker failure (e.g. mid-reconnect,
+                // see the exponential-backoff loop in MqttHelper) must not block deleting the device from
+                // the database. But it also must not leave the topic stuck in the tracked-subscriptions set
+                // forever - that would make ResubscribeAllAsync silently replay it after a future reconnect
+                // for a device that's about to no longer exist. So on a failed unsubscribe we still forget
+                // the subscription locally (logging it clearly) and proceed with the DB delete regardless.
+                string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
+                if (_mqttHelper.IsSubscribedTo(topic)) {
+                    try {
+                        await _mqttHelper.UnsubscribeAsync(topic);
+                    } catch (Exception ex) {
+                        _logger.LogError(ex, "Failed to unsubscribe from MQTT topic '{Topic}' while deleting device '{DeviceId}'; forgetting the subscription locally so it isn't replayed after a future reconnect.", topic, id);
+                        _mqttHelper.ForgetSubscription(topic);
+                    }
+                }
+
                 var deleted = await _repository.DeleteDevice(id);
                 if (deleted) {
-                    // Clean up any lingering MQTT subscription so a future clean-session reconnect
-                    // doesn't silently re-subscribe to a topic belonging to a device that no longer exists.
-                    string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
-                    if (_mqttHelper.IsSubscribedTo(topic)) {
-                        await _mqttHelper.UnsubscribeAsync(topic);
-                    }
                     _logger.LogInformation("Device '{DeviceId}' deleted successfully.", id);
                 }
                 return deleted;

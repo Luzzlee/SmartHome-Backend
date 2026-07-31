@@ -32,11 +32,18 @@ namespace SmartHome.Shared {
         private string? _host;
         private int _port;
 
-        public MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration, ILogger<MqttHelper> logger) {
+        public MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration, ILogger<MqttHelper> logger)
+            : this(hubContext, configuration, logger, new MqttClientFactory().CreateMqttClient()) {
+        }
+
+        // Lets unit tests inject a mocked IMqttClient to exercise broker-failure paths (e.g. an
+        // UnsubscribeAsync call that throws) without a real broker connection. Production code always
+        // goes through the public constructor above.
+        internal MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration, ILogger<MqttHelper> logger, IMqttClient client) {
             _hubContext = hubContext;
             _configuration = configuration;
             _logger = logger;
-            _client = new MqttClientFactory().CreateMqttClient();
+            _client = client;
         }
 
         /// <summary>Whether the MQTT client currently holds an open connection to the broker. Used by the /health endpoint.</summary>
@@ -168,6 +175,20 @@ namespace SmartHome.Shared {
             } catch (Exception ex) {
                 _logger.LogError(ex, "Failed to unsubscribe from MQTT topic '{Topic}'.", topic);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Stops tracking <paramref name="topic"/> as subscribed, without attempting the broker-side
+        /// unsubscribe call. For use when a caller already tried <see cref="UnsubscribeAsync"/> and it
+        /// failed (e.g. broker unreachable, mid-reconnect) but still needs the topic removed from local
+        /// tracking regardless - e.g. because the device it belonged to is being deleted anyway, and
+        /// leaving the topic tracked would make <see cref="ResubscribeAllAsync"/> silently replay it
+        /// after the next successful reconnect for a device that no longer exists in the database.
+        /// </summary>
+        public void ForgetSubscription(string topic) {
+            lock (_subscribedTopicsLock) {
+                _subscribedTopics.Remove(topic);
             }
         }
 
