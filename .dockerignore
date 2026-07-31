@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.vscode/
+**/*.db
+**/*.db-journal
+**/*.db-shm
+**/*.db-wal
+**/*.user
+project-structure.txt
+qa_stdout.log
