@@ -35,7 +35,7 @@ namespace SmartHome.Slices.Devices.Repository {
             return device;
         }
 
-        public async Task<Device?> SearchDeviceByName(string name) {
+        public async Task<List<Device>> SearchDeviceByName(string name) {
             using var connection = _dbFactory.CreateConnection();
 
             var sql = @"
@@ -43,10 +43,10 @@ namespace SmartHome.Slices.Devices.Repository {
                 WHERE Name LIKE @Name
             ";
 
-            var device = await connection.QueryAsync<Device>(sql, new { Name = $"{name}" })
-                .ContinueWith(task => task.Result.FirstOrDefault());
+            var devices = await connection.QueryAsync<Device>(sql, new { Name = $"%{name}%" })
+                .ContinueWith(task => task.Result.ToList());
 
-            return device;
+            return devices;
         }
 
         public async Task<Device?> CreateDevice(Device device) {
@@ -87,6 +87,19 @@ namespace SmartHome.Slices.Devices.Repository {
            var device = await GetDeviceById(id);
 
             return device;
+        }
+
+        public async Task<bool> DeleteDevice(string id) {
+            using var connection = _dbFactory.CreateConnection();
+
+            var sql = @"
+                DELETE FROM Devices
+                WHERE Id = @Id
+            ";
+
+            var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
+
+            return affectedRows > 0;
         }
 
         public async Task<string?> GetIdOfLatestEntry() {

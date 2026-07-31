@@ -32,11 +32,18 @@ namespace SmartHome.Shared {
         private string? _host;
         private int _port;
 
-        public MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration, ILogger<MqttHelper> logger) {
+        public MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration, ILogger<MqttHelper> logger)
+            : this(hubContext, configuration, logger, new MqttClientFactory().CreateMqttClient()) {
+        }
+
+        // Lets unit tests inject a mocked IMqttClient to exercise broker-failure paths (e.g. an
+        // UnsubscribeAsync call that throws) without a real broker connection. Production code always
+        // goes through the public constructor above.
+        internal MqttHelper(IHubContext<DeviceHub> hubContext, IConfiguration configuration, ILogger<MqttHelper> logger, IMqttClient client) {
             _hubContext = hubContext;
             _configuration = configuration;
             _logger = logger;
-            _client = new MqttClientFactory().CreateMqttClient();
+            _client = client;
         }
 
         /// <summary>Whether the MQTT client currently holds an open connection to the broker. Used by the /health endpoint.</summary>
@@ -138,6 +145,50 @@ namespace SmartHome.Shared {
             } catch (Exception ex) {
                 _logger.LogError(ex, "Failed to subscribe to MQTT topic '{Topic}'.", topic);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Whether <paramref name="topic"/> is currently tracked as subscribed (see
+        /// <see cref="_subscribedTopics"/>). Callers can use this to avoid an unnecessary broker
+        /// round-trip when unsubscribing from a topic that was never subscribed to begin with.
+        /// </summary>
+        public bool IsSubscribedTo(string topic) {
+            lock (_subscribedTopicsLock) {
+                return _subscribedTopics.Contains(topic);
+            }
+        }
+
+        /// <summary>
+        /// Unsubscribes from <paramref name="topic"/> and stops tracking it, so it's no longer
+        /// replayed by <see cref="ResubscribeAllAsync"/> after a future (re)connect - otherwise a
+        /// clean-session reconnect would silently re-subscribe to a topic the caller explicitly
+        /// asked to leave (e.g. after deleting the device it belonged to).
+        /// </summary>
+        public async Task UnsubscribeAsync(string topic) {
+            try {
+                await _client.UnsubscribeAsync(topic);
+                lock (_subscribedTopicsLock) {
+                    _subscribedTopics.Remove(topic);
+                }
+                _logger.LogInformation("Unsubscribed from MQTT topic '{Topic}'.", topic);
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Failed to unsubscribe from MQTT topic '{Topic}'.", topic);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Stops tracking <paramref name="topic"/> as subscribed, without attempting the broker-side
+        /// unsubscribe call. For use when a caller already tried <see cref="UnsubscribeAsync"/> and it
+        /// failed (e.g. broker unreachable, mid-reconnect) but still needs the topic removed from local
+        /// tracking regardless - e.g. because the device it belonged to is being deleted anyway, and
+        /// leaving the topic tracked would make <see cref="ResubscribeAllAsync"/> silently replay it
+        /// after the next successful reconnect for a device that no longer exists in the database.
+        /// </summary>
+        public void ForgetSubscription(string topic) {
+            lock (_subscribedTopicsLock) {
+                _subscribedTopics.Remove(topic);
             }
         }
 

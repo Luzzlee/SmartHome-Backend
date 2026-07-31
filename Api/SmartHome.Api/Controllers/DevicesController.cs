@@ -36,14 +36,10 @@ namespace SmartHome.Api {
         }
 
         [HttpGet("search")]
-        [ProducesResponseType(typeof(Device), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IEnumerable<Device>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> SearchDeviceByName([FromQuery] string name) {
             var result = await _service.SearchDeviceByName(name);
-            if(result == null) {
-                return NotFound();
-            }
             return Ok(result);
         }
 
@@ -68,6 +64,18 @@ namespace SmartHome.Api {
                 return NotFound();
             }
             return Ok(result);
+        }
+
+        [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteDevice([FromRoute] string id) {
+            var deleted = await _service.DeleteDevice(id);
+            if(!deleted) {
+                return NotFound();
+            }
+            return NoContent();
         }
 
         [HttpPost("action/subscribe/{id}")]

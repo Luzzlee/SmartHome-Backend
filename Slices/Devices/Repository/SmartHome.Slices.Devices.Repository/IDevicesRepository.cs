@@ -4,7 +4,13 @@ namespace SmartHome.Slices.Devices.Repository {
     public interface IDevicesRepository {
         Task<List<Device>> GetAllDevices();
         Task<Device?> GetDeviceById(string id);
-        Task<Device?> SearchDeviceByName(string name);
+
+        /// <summary>
+        /// Returns every device whose name contains <paramref name="name"/> as a substring
+        /// (case-sensitivity depends on the underlying SQLite collation). Wildcard-wrapping for the
+        /// SQL LIKE query happens here - callers pass a plain substring, not LIKE syntax.
+        /// </summary>
+        Task<List<Device>> SearchDeviceByName(string name);
 
         /// <summary>
         /// Inserts <paramref name="device"/> and returns the persisted entity.
@@ -16,6 +22,9 @@ namespace SmartHome.Slices.Devices.Repository {
         /// </exception>
         Task<Device?> CreateDevice(Device device);
         Task<Device?> SetDeviceActiveStatus(string id, bool active);
+
+        /// <summary>Deletes the device with <paramref name="id"/>. Returns whether a row was deleted.</summary>
+        Task<bool> DeleteDevice(string id);
         Task<string?> GetIdOfLatestEntry();
     }
 }

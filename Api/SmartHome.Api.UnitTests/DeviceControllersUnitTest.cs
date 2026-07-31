@@ -57,27 +57,28 @@ namespace SmartHome.Api.UnitTests {
         }
 
         [Test]
-        public async Task SearchDeviceByName_WhenDeviceDoesExist_ShouldReturnOk() {
+        public async Task SearchDeviceByName_WhenDevicesMatch_ShouldReturnOk() {
             var device = new Device { Id = "20210824-001", Name = "Bedroom Light", Type = "Light", IpAddress = "192.168.0.5", Active = true };
 
             _serviceMock
-                .Setup(s => s.SearchDeviceByName("20210824-001"))
-                .ReturnsAsync(device);
+                .Setup(s => s.SearchDeviceByName("Bedroom"))
+                .ReturnsAsync(new List<Device> { device });
 
-            var result = await _controller.SearchDeviceByName("20210824-001");
+            var result = await _controller.SearchDeviceByName("Bedroom");
 
             Assert.That(result, Is.TypeOf<OkObjectResult>());
         }
 
         [Test]
-        public async Task SearchDeviceByName_WhenDeviceDoesNotExist_ShouldReturnNotFound() {
+        public async Task SearchDeviceByName_WhenNoDeviceMatches_ShouldReturnOkWithEmptyList() {
             _serviceMock
                 .Setup(s => s.SearchDeviceByName("20210824-001"))
-                .ReturnsAsync((Device?)null);
+                .ReturnsAsync(new List<Device>());
 
-            var result = await _controller.SearchDeviceByName("20210824-001");
+            var result = await _controller.SearchDeviceByName("20210824-001") as OkObjectResult;
 
-            Assert.That(result, Is.TypeOf<NotFoundResult>());
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Value, Is.TypeOf<List<Device>>().And.Empty);
         }
 
         [Test]
@@ -124,6 +125,37 @@ namespace SmartHome.Api.UnitTests {
                 .ThrowsAsync(new ArgumentException());
 
             Assert.ThrowsAsync<ArgumentException>(async () => await _controller.CreateDevice(device));
+        }
+
+        [Test]
+        public async Task DeleteDevice_WhenDeviceDoesExist_ShouldReturnNoContent() {
+            _serviceMock
+                .Setup(s => s.DeleteDevice("20210824-001"))
+                .ReturnsAsync(true);
+
+            var result = await _controller.DeleteDevice("20210824-001");
+
+            Assert.That(result, Is.TypeOf<NoContentResult>());
+        }
+
+        [Test]
+        public async Task DeleteDevice_WhenDeviceDoesNotExist_ShouldReturnNotFound() {
+            _serviceMock
+                .Setup(s => s.DeleteDevice("20210824-001"))
+                .ReturnsAsync(false);
+
+            var result = await _controller.DeleteDevice("20210824-001");
+
+            Assert.That(result, Is.TypeOf<NotFoundResult>());
+        }
+
+        [Test]
+        public void DeleteDevice_WhenServiceThrowsArgumentException_PropagatesException() {
+            _serviceMock
+                .Setup(s => s.DeleteDevice("invalidId"))
+                .ThrowsAsync(new ArgumentException());
+
+            Assert.ThrowsAsync<ArgumentException>(async () => await _controller.DeleteDevice("invalidId"));
         }
     }
 }
