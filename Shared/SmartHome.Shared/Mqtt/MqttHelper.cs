@@ -20,6 +20,14 @@ namespace SmartHome.Shared {
         // and a later DisconnectedAsync event can both try to start one.
         private readonly SemaphoreSlim _reconnectGate = new(1, 1);
 
+        // Clean-session mode (see ConnectAsync below) means the broker forgets subscriptions on every
+        // connect, including reconnects. Track topics ourselves and replay them after every successful
+        // (re)connect so device subscriptions survive a broker blip without the caller having to
+        // re-issue them. Guarded by _subscribedTopicsLock since SubscribeAsync (API requests) and the
+        // background reconnect loop can touch it concurrently.
+        private readonly HashSet<string> _subscribedTopics = new();
+        private readonly object _subscribedTopicsLock = new();
+
         private MqttClientOptions? _options;
         private string? _host;
         private int _port;
@@ -67,6 +75,7 @@ namespace SmartHome.Shared {
             try {
                 await _client.ConnectAsync(_options);
                 _logger.LogInformation("MQTT client connected to {Host}:{Port} as '{ClientId}'.", _host, _port, mqttSection["ClientId"]);
+                await ResubscribeAllAsync();
             } catch (Exception ex) {
                 _logger.LogError(ex, "MQTT client failed to connect to {Host}:{Port}. Will keep retrying in the background.", _host, _port);
                 _ = ReconnectWithBackoffAsync();
@@ -91,6 +100,7 @@ namespace SmartHome.Shared {
                     try {
                         await _client.ConnectAsync(_options);
                         _logger.LogInformation("MQTT client reconnected to {Host}:{Port}.", _host, _port);
+                        await ResubscribeAllAsync();
                     } catch (Exception ex) {
                         _logger.LogWarning(ex, "MQTT reconnect attempt to {Host}:{Port} failed. Retrying in {DelaySeconds}s.", _host, _port, delay.TotalSeconds);
                         delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, MaxReconnectDelay.Ticks));
@@ -121,10 +131,43 @@ namespace SmartHome.Shared {
         public async Task SubscribeAsync(string topic) {
             try {
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+                lock (_subscribedTopicsLock) {
+                    _subscribedTopics.Add(topic);
+                }
                 _logger.LogInformation("Subscribed to MQTT topic '{Topic}'.", topic);
             } catch (Exception ex) {
                 _logger.LogError(ex, "Failed to subscribe to MQTT topic '{Topic}'.", topic);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Re-issues every previously successful subscription against the broker. Clean-session mode
+        /// (see ConnectAsync) means the broker discards subscription state on every connect, so this
+        /// must run after each (re)connect - initial, manual, or from the background backoff loop - or
+        /// previously subscribed devices silently stop receiving live updates after a reconnect.
+        /// </summary>
+        private async Task ResubscribeAllAsync() {
+            string[] topics;
+            lock (_subscribedTopicsLock) {
+                topics = _subscribedTopics.ToArray();
+            }
+
+            if (topics.Length == 0) {
+                return;
+            }
+
+            _logger.LogInformation("Re-subscribing to {Count} previously subscribed MQTT topic(s) after (re)connect.", topics.Length);
+
+            foreach (var topic in topics) {
+                try {
+                    await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+                    _logger.LogInformation("Re-subscribed to MQTT topic '{Topic}'.", topic);
+                } catch (Exception ex) {
+                    // Don't let one bad topic abort the rest, and don't let this bubble up into the
+                    // caller's connect-success path and be mistaken for a failed (re)connect.
+                    _logger.LogError(ex, "Failed to re-subscribe to MQTT topic '{Topic}' after (re)connect.", topic);
+                }
             }
         }
     }
