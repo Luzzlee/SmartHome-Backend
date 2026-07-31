@@ -36,6 +36,13 @@ namespace SmartHome.Slices.Devices.UnitTests {
         }
 
         [Test]
+        public async Task GetDeviceById_ShouldReturnNull_WhenIdDoesNotExist() {
+            var device = await _repository.GetDeviceById("20990101-999");
+
+            Assert.That(device, Is.Null);
+        }
+
+        [Test]
         public async Task SearchDeviceByName_ShouldReturnAllMatchingDevices_ForPlainSubstring() {
             var devices = await _repository.SearchDeviceByName("Speaker");
 
@@ -76,6 +83,13 @@ namespace SmartHome.Slices.Devices.UnitTests {
 
             Assert.That(createdDevice, Is.Not.Null);
             Assert.That(createdDevice!.Id, Is.EqualTo(device.Id));
+        }
+
+        [Test]
+        public void CreateDevice_ShouldThrow_WhenIdIsAlreadyTaken() {
+            var device = new Device { Id = "20250605-001", Name = "Duplicate Id Device", Type = "Light", IpAddress = "192.168.0.9", Active = true };
+
+            Assert.ThrowsAsync<DeviceIdCollisionException>(async () => await _repository.CreateDevice(device));
         }
 
         [Test]
