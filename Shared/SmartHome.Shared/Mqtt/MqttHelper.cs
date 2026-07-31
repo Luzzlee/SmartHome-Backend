@@ -142,6 +142,36 @@ namespace SmartHome.Shared {
         }
 
         /// <summary>
+        /// Whether <paramref name="topic"/> is currently tracked as subscribed (see
+        /// <see cref="_subscribedTopics"/>). Callers can use this to avoid an unnecessary broker
+        /// round-trip when unsubscribing from a topic that was never subscribed to begin with.
+        /// </summary>
+        public bool IsSubscribedTo(string topic) {
+            lock (_subscribedTopicsLock) {
+                return _subscribedTopics.Contains(topic);
+            }
+        }
+
+        /// <summary>
+        /// Unsubscribes from <paramref name="topic"/> and stops tracking it, so it's no longer
+        /// replayed by <see cref="ResubscribeAllAsync"/> after a future (re)connect - otherwise a
+        /// clean-session reconnect would silently re-subscribe to a topic the caller explicitly
+        /// asked to leave (e.g. after deleting the device it belonged to).
+        /// </summary>
+        public async Task UnsubscribeAsync(string topic) {
+            try {
+                await _client.UnsubscribeAsync(topic);
+                lock (_subscribedTopicsLock) {
+                    _subscribedTopics.Remove(topic);
+                }
+                _logger.LogInformation("Unsubscribed from MQTT topic '{Topic}'.", topic);
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Failed to unsubscribe from MQTT topic '{Topic}'.", topic);
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Re-issues every previously successful subscription against the broker. Clean-session mode
         /// (see ConnectAsync) means the broker discards subscription state on every connect, so this
         /// must run after each (re)connect - initial, manual, or from the background backoff loop - or

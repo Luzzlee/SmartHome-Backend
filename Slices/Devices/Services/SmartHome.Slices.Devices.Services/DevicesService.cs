@@ -27,7 +27,7 @@ namespace SmartHome.Slices.Devices.Services {
             return result;
         }
 
-        public async Task<Device?> SearchDeviceByName(string name) {
+        public async Task<List<Device>> SearchDeviceByName(string name) {
             ValidateName(name);
             var result = await _repository.SearchDeviceByName(name);
             return result;
@@ -73,6 +73,32 @@ namespace SmartHome.Slices.Devices.Services {
             ValidateId(id);
             var result = await _repository.SetDeviceActiveStatus(id, active);
             return result;
+        }
+
+        public async Task<bool> DeleteDevice(string id) {
+            _logger.LogInformation("Deleting device '{DeviceId}'.", id);
+            try {
+                var device = await GetDeviceById(id);
+                if (device == null) {
+                    _logger.LogWarning("Device '{DeviceId}' not found; nothing to delete.", id);
+                    return false;
+                }
+
+                var deleted = await _repository.DeleteDevice(id);
+                if (deleted) {
+                    // Clean up any lingering MQTT subscription so a future clean-session reconnect
+                    // doesn't silently re-subscribe to a topic belonging to a device that no longer exists.
+                    string topic = $"smarthome/{device.Type.ToLower()}/{device.Name.ToLower()}/{device.Id}";
+                    if (_mqttHelper.IsSubscribedTo(topic)) {
+                        await _mqttHelper.UnsubscribeAsync(topic);
+                    }
+                    _logger.LogInformation("Device '{DeviceId}' deleted successfully.", id);
+                }
+                return deleted;
+            } catch (Exception ex) {
+                _logger.LogWarning("Failed to delete device '{DeviceId}': {Message}", id, ex.Message);
+                throw;
+            }
         }
 
         public async Task SubscribeToDevice(string id) {

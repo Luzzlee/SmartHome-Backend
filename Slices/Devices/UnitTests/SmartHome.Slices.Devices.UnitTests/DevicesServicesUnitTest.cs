@@ -132,6 +132,38 @@ namespace SmartHome.Slices.Devices.UnitTests {
         }
 
         [Test]
+        public void DeleteDevice_ShouldThrow_WhenIdIsEmpty() {
+            Assert.ThrowsAsync<ArgumentException>(async () => await _service.DeleteDevice(""), "Device ID cannot be empty.");
+        }
+
+        [Test]
+        public void DeleteDevice_ShouldThrow_WhenIdIsInvalid() {
+            Assert.ThrowsAsync<ArgumentException>(async () => await _service.DeleteDevice("InvalidId"), "Device ID 'InvalidId' does not match pattern. Expected Format: yyyyMMdd-XXX (z. B. 20250829-001)");
+        }
+
+        [Test]
+        public async Task DeleteDevice_ShouldReturnFalse_WhenDeviceDoesNotExist() {
+            _repositoryMock.Setup(r => r.GetDeviceById("20250829-001")).ReturnsAsync((Device?)null);
+
+            var result = await _service.DeleteDevice("20250829-001");
+
+            Assert.That(result, Is.False);
+            _repositoryMock.Verify(r => r.DeleteDevice(It.IsAny<string>()), Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteDevice_ShouldReturnTrue_WhenDeviceExistsAndIsDeleted() {
+            var device = new Device { Id = "20250829-001", Name = "Bedroom Light", Type = "Light", IpAddress = "192.168.0.5", Active = true };
+            _repositoryMock.Setup(r => r.GetDeviceById("20250829-001")).ReturnsAsync(device);
+            _repositoryMock.Setup(r => r.DeleteDevice("20250829-001")).ReturnsAsync(true);
+
+            var result = await _service.DeleteDevice("20250829-001");
+
+            Assert.That(result, Is.True);
+            _repositoryMock.Verify(r => r.DeleteDevice("20250829-001"), Times.Once);
+        }
+
+        [Test]
         public void CreateDevice_ShouldThrow_WhenIdCollisionPersistsAfterMaxAttempts() {
             var today = DateTime.UtcNow.ToString("yyyyMMdd");
             _repositoryMock.Setup(r => r.GetIdOfLatestEntry()).ReturnsAsync($"{today}-001");

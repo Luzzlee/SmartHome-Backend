@@ -23,5 +23,21 @@ namespace SmartHome.Shared.UnitTests {
             // throwing or defaulting to "connected".
             Assert.That(_mqttHelper.IsConnected, Is.False);
         }
+
+        [Test]
+        public void IsSubscribedTo_ReturnsFalse_ForTopicThatWasNeverSubscribed() {
+            Assert.That(_mqttHelper.IsSubscribedTo("smarthome/light/kitchen/20250829-001"), Is.False);
+        }
+
+        [Test]
+        public void UnsubscribeAsync_Throws_AndLeavesTopicUntracked_WhenClientIsNotConnected() {
+            // No ConnectAsync() call was made (same premise as IsConnected_IsFalse... above), so the
+            // broker round-trip fails. The topic was never tracked as subscribed to begin with, and
+            // must stay that way - a failed unsubscribe must not be mistaken for a successful one.
+            var topic = "smarthome/light/kitchen/20250829-001";
+
+            Assert.CatchAsync<Exception>(async () => await _mqttHelper.UnsubscribeAsync(topic));
+            Assert.That(_mqttHelper.IsSubscribedTo(topic), Is.False);
+        }
     }
 }

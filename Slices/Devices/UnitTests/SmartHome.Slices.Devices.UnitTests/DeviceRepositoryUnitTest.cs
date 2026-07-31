@@ -36,11 +36,36 @@ namespace SmartHome.Slices.Devices.UnitTests {
         }
 
         [Test]
-        public async Task SearchDeviceByName_ShouldReturnCorrectDevice() {
-            var device = await _repository.SearchDeviceByName("Kitchen Spe%");
+        public async Task SearchDeviceByName_ShouldReturnAllMatchingDevices_ForPlainSubstring() {
+            var devices = await _repository.SearchDeviceByName("Speaker");
 
-            Assert.That(device, Is.Not.Null);
-            Assert.That(device!.Id, Is.EqualTo("20250605-001"));
+            Assert.That(devices.Count, Is.EqualTo(2));
+            Assert.That(devices.Select(d => d.Id), Is.EquivalentTo(new[] { "20250605-001", "20250605-002" }));
+        }
+
+        [Test]
+        public async Task SearchDeviceByName_ShouldReturnSingleDevice_WhenOnlyOneMatches() {
+            var devices = await _repository.SearchDeviceByName("Kitchen");
+
+            Assert.That(devices.Count, Is.EqualTo(1));
+            Assert.That(devices[0].Id, Is.EqualTo("20250605-001"));
+        }
+
+        [Test]
+        public async Task SearchDeviceByName_ShouldNotRequireSqlLikeSyntax() {
+            // Callers pass a plain substring - no leading/trailing '%' - the repository does the
+            // wildcard-wrapping itself.
+            var devices = await _repository.SearchDeviceByName("Light");
+
+            Assert.That(devices.Count, Is.EqualTo(2));
+            Assert.That(devices.Select(d => d.Id), Is.EquivalentTo(new[] { "20230606-001", "20240824-001" }));
+        }
+
+        [Test]
+        public async Task SearchDeviceByName_ShouldReturnEmptyList_WhenNoDeviceMatches() {
+            var devices = await _repository.SearchDeviceByName("Nonexistent");
+
+            Assert.That(devices, Is.Empty);
         }
 
         [Test]
@@ -64,6 +89,22 @@ namespace SmartHome.Slices.Devices.UnitTests {
             Assert.That(updatedDevice, Is.Not.Null);
             Assert.That(createdDevice!.Active, Is.True);
             Assert.That(updatedDevice!.Active, Is.False);
+        }
+
+        [Test]
+        public async Task DeleteDevice_ShouldRemoveDeviceAndReturnTrue_WhenDeviceExists() {
+            var deleted = await _repository.DeleteDevice("20250605-002");
+            var deviceAfterDelete = await _repository.GetDeviceById("20250605-002");
+
+            Assert.That(deleted, Is.True);
+            Assert.That(deviceAfterDelete, Is.Null);
+        }
+
+        [Test]
+        public async Task DeleteDevice_ShouldReturnFalse_WhenDeviceDoesNotExist() {
+            var deleted = await _repository.DeleteDevice("20990101-999");
+
+            Assert.That(deleted, Is.False);
         }
 
         [Test]
