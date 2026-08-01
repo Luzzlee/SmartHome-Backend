@@ -125,3 +125,9 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Top-level statements generate an internal Program class by default; this makes it externally
+// referenceable so WebApplicationFactory<Program> (used by integration tests, see
+// Api/SmartHome.Api.UnitTests/SessionInvalidationUnitTest.cs) can boot the real app. Standard
+// pattern, doesn't change runtime behavior.
+public partial class Program { }
