@@ -2,6 +2,7 @@ using SmartHome.Shared;
 using SmartHome.Slices.Devices.Repository;
 using SmartHome.Slices.Devices.Services;
 using SmartHome.Slices.Auth.Services;
+using SmartHome.Api.Auth;
 using SmartHome.Api.ErrorHandling;
 using SmartHome.Api.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -55,6 +56,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
         };
+    });
+
+// Server-side session store: without this, the cookie itself is the *only* record of a session, so
+// logout (which just clears the browser's cookie) can't actually revoke an already-issued cookie - a
+// replayed old cookie value stays valid until its own expiry. Wiring an ITicketStore in makes every
+// authenticated request check the in-memory store, not just the cookie's own encrypted validity, and
+// makes logout remove the session from that store so a replayed cookie is rejected immediately.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ITicketStore, InMemoryTicketStore>();
+builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+    .Configure<ITicketStore>((options, ticketStore) => {
+        options.SessionStore = ticketStore;
     });
 
 builder.Services.AddAuthorization();
